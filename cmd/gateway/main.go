@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Oragwel/api-gateway/internal/handlers"
+	"github.com/Oragwel/api-gateway/pkg/apikey"
 	"github.com/Oragwel/api-gateway/pkg/auth"
 	"github.com/Oragwel/api-gateway/pkg/config"
 	"github.com/Oragwel/api-gateway/pkg/health"
@@ -24,12 +25,13 @@ import (
 
 // Gateway represents the main API Gateway application
 type Gateway struct {
-	config      *config.Config
-	router      *gin.Engine
-	proxyPool   *proxy.Pool
-	authService *auth.Service
-	metrics     *metrics.Collector
-	health      *health.Checker
+	config        *config.Config
+	router        *gin.Engine
+	proxyPool     *proxy.Pool
+	authService   *auth.Service
+	apiKeyService *apikey.Service
+	metrics       *metrics.Collector
+	health        *health.Checker
 }
 
 // NewGateway creates a new API Gateway instance
@@ -42,6 +44,7 @@ func NewGateway() (*Gateway, error) {
 
 	// Initialize components
 	authService := auth.NewService(cfg.Auth)
+	apiKeyService := apikey.NewService()
 	proxyPool := proxy.NewPool(cfg.Upstream)
 	metricsCollector := metrics.NewCollector()
 	healthChecker := health.NewChecker(cfg.Health)
@@ -53,12 +56,13 @@ func NewGateway() (*Gateway, error) {
 	router := gin.New()
 
 	gateway := &Gateway{
-		config:      cfg,
-		router:      router,
-		proxyPool:   proxyPool,
-		authService: authService,
-		metrics:     metricsCollector,
-		health:      healthChecker,
+		config:        cfg,
+		router:        router,
+		proxyPool:     proxyPool,
+		authService:   authService,
+		apiKeyService: apiKeyService,
+		metrics:       metricsCollector,
+		health:        healthChecker,
 	}
 
 	gateway.setupMiddleware()
@@ -131,6 +135,21 @@ func (g *Gateway) setupRoutes() {
 		}
 	}
 
+	// API Key management endpoints (authenticated users)
+	apiKeyGroup := g.router.Group("/api-keys")
+	apiKeyGroup.Use(middleware.Authentication(g.authService))
+	{
+		apiKeyGroup.POST("", handlers.CreateAPIKey(g.apiKeyService))
+		apiKeyGroup.GET("", handlers.ListAPIKeys(g.apiKeyService))
+		apiKeyGroup.GET("/search", handlers.SearchAPIKeys(g.apiKeyService))
+		apiKeyGroup.GET("/scopes", handlers.GetAvailableScopes())
+		apiKeyGroup.GET("/validate", handlers.ValidateAPIKeyEndpoint(g.apiKeyService))
+		apiKeyGroup.GET("/:id", handlers.GetAPIKey(g.apiKeyService))
+		apiKeyGroup.PUT("/:id", handlers.UpdateAPIKey(g.apiKeyService))
+		apiKeyGroup.DELETE("/:id", handlers.DeleteAPIKey(g.apiKeyService))
+		apiKeyGroup.GET("/:id/stats", handlers.GetAPIKeyStats(g.apiKeyService))
+	}
+
 	// Admin endpoints (with admin authentication)
 	adminGroup := g.router.Group("/admin")
 	adminGroup.Use(middleware.AdminAuth(g.authService))
@@ -139,6 +158,7 @@ func (g *Gateway) setupRoutes() {
 		adminGroup.GET("/config", handlers.GetConfig(g.config))
 		adminGroup.POST("/reload", handlers.ReloadConfig())
 		adminGroup.GET("/upstream", handlers.UpstreamStatus(g.proxyPool))
+		adminGroup.GET("/api-keys", handlers.GetAllAPIKeys(g.apiKeyService))
 	}
 
 	// WebSocket proxy support

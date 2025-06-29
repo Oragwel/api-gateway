@@ -343,34 +343,6 @@ func Metrics(collector *metrics.Collector) gin.HandlerFunc {
 	}
 }
 
-// APIKeyAuth middleware validates API keys
-func APIKeyAuth(validKeys map[string]string) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		apiKey := c.GetHeader("X-API-Key")
-		if apiKey == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error":   "Missing API key",
-				"message": "X-API-Key header is required",
-			})
-			c.Abort()
-			return
-		}
-
-		// Validate API key
-		if clientID, valid := validKeys[apiKey]; valid {
-			c.Set("client_id", clientID)
-			c.Set("auth_type", "api_key")
-			c.Next()
-		} else {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error":   "Invalid API key",
-				"message": "The provided API key is not valid",
-			})
-			c.Abort()
-		}
-	}
-}
-
 // Timeout middleware adds request timeout
 func Timeout(timeout time.Duration) gin.HandlerFunc {
 	return func(c *gin.Context) {

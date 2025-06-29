@@ -15,8 +15,9 @@ A production-ready API Gateway designed for microservices architecture, featurin
 
 ### 🔐 **Security & Authentication**
 - **JWT Authentication** - Secure token-based authentication
+- **API Key Management** - Complete API key lifecycle with scopes and rate limiting
 - **Role-based Access Control** - Fine-grained permission system
-- **API Key Authentication** - Support for API key-based access
+- **Scope-based Authorization** - Granular API access control (read, write, admin)
 - **Rate Limiting** - Configurable rate limiting per IP/user/API key
 - **CORS Support** - Cross-origin resource sharing configuration
 
@@ -157,6 +158,17 @@ CACHE_STRATEGY=redis                        # Cache strategy (redis, memory, hyb
 - `POST /auth/logout` - User logout
 - `GET /auth/validate` - Validate token
 
+### **API Key Management Endpoints**
+- `POST /api-keys` - Create new API key
+- `GET /api-keys` - List user's API keys (paginated)
+- `GET /api-keys/search?q=query` - Search API keys
+- `GET /api-keys/scopes` - Get available scopes
+- `GET /api-keys/validate` - Validate API key
+- `GET /api-keys/:id` - Get specific API key
+- `PUT /api-keys/:id` - Update API key
+- `DELETE /api-keys/:id` - Delete API key
+- `GET /api-keys/:id/stats` - Get usage statistics
+
 ### **API Proxy Endpoints**
 - `ANY /api/v1/*` - Proxy to v1 services
 - `ANY /api/v2/*` - Proxy to v2 services
@@ -166,6 +178,7 @@ CACHE_STRATEGY=redis                        # Cache strategy (redis, memory, hyb
 - `GET /admin/config` - Gateway configuration
 - `POST /admin/reload` - Reload configuration
 - `GET /admin/upstream` - Upstream service status
+- `GET /admin/api-keys` - View all API keys (admin only)
 
 ### **Monitoring Endpoints**
 - `GET /metrics` - Prometheus metrics
@@ -245,6 +258,53 @@ The gateway exposes comprehensive metrics at `/metrics`:
 - **Admin**: `admin@tidingstechnologies.com` / `admin123`
 - **User**: `user@tidingstechnologies.com` / `user123`
 - **API**: `api@tidingstechnologies.com` / `api123`
+
+### **API Key Usage**
+
+#### **Creating an API Key**
+```bash
+# Login to get JWT token
+curl -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@tidingstechnologies.com","password":"admin123"}'
+
+# Create API key
+curl -X POST http://localhost:8080/api-keys \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My API Key",
+    "description": "API key for my application",
+    "scopes": ["read", "users:read", "orders:read"],
+    "rate_limit": {
+      "requests_per_second": 10,
+      "requests_per_minute": 600,
+      "burst_size": 20
+    }
+  }'
+```
+
+#### **Using an API Key**
+```bash
+# Use API key in X-API-Key header
+curl -X GET http://localhost:8080/api/v1/users \
+  -H "X-API-Key: gw_your_api_key_here"
+
+# Or use as Bearer token
+curl -X GET http://localhost:8080/api/v1/users \
+  -H "Authorization: Bearer gw_your_api_key_here"
+```
+
+#### **Available Scopes**
+- `read` - Read access to all resources
+- `write` - Write access to all resources
+- `delete` - Delete access to all resources
+- `admin` - Full administrative access
+- `users:read` - Read user information
+- `users:write` - Create and update users
+- `orders:read` - Read order information
+- `orders:write` - Create and update orders
+- `metrics:read` - Read metrics and analytics
 
 ## 🚀 Deployment
 

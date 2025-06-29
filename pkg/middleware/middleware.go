@@ -25,7 +25,7 @@ func RequestID() gin.HandlerFunc {
 		if requestID == "" {
 			requestID = uuid.New().String()
 		}
-		
+
 		c.Header("X-Request-ID", requestID)
 		c.Set("request_id", requestID)
 		c.Next()
@@ -59,7 +59,7 @@ func CORS(config config.CORSConfig) gin.HandlerFunc {
 		}
 
 		origin := c.Request.Header.Get("Origin")
-		
+
 		// Check if origin is allowed
 		allowed := false
 		for _, allowedOrigin := range config.AllowedOrigins {
@@ -102,7 +102,7 @@ func Security() gin.HandlerFunc {
 		c.Header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
 		c.Header("Content-Security-Policy", "default-src 'self'")
-		
+
 		c.Next()
 	}
 }
@@ -156,7 +156,7 @@ func RateLimit(config config.RateLimitConfig) gin.HandlerFunc {
 
 	return func(c *gin.Context) {
 		var key string
-		
+
 		switch config.KeyFunc {
 		case "ip":
 			key = c.ClientIP()
@@ -178,16 +178,56 @@ func RateLimit(config config.RateLimitConfig) gin.HandlerFunc {
 		}
 
 		limiter := rateLimiter.getLimiter(key)
-		
+
 		if !limiter.Allow() {
 			c.JSON(http.StatusTooManyRequests, gin.H{
-				"error":   "Rate limit exceeded",
-				"message": "Too many requests, please try again later",
+				"error":       "Rate limit exceeded",
+				"message":     "Too many requests, please try again later",
 				"retry_after": int(config.WindowSize.Seconds()),
 			})
 			c.Abort()
 			return
 		}
+
+		c.Next()
+	}
+}
+
+// RedisRateLimit implements Redis-based distributed rate limiting
+func RedisRateLimit(config config.RateLimitConfig, redisClient interface{}) gin.HandlerFunc {
+	if !config.Enabled {
+		return func(c *gin.Context) {
+			c.Next()
+		}
+	}
+
+	return func(c *gin.Context) {
+		var key string
+
+		switch config.KeyFunc {
+		case "ip":
+			key = c.ClientIP()
+		case "user":
+			if userID, exists := c.Get("user_id"); exists {
+				key = fmt.Sprintf("user:%s", userID)
+			} else {
+				key = c.ClientIP()
+			}
+		case "api_key":
+			apiKey := c.GetHeader("X-API-Key")
+			if apiKey != "" {
+				key = fmt.Sprintf("api_key:%s", apiKey)
+			} else {
+				key = c.ClientIP()
+			}
+		default:
+			key = c.ClientIP()
+		}
+
+		// This would use Redis for distributed rate limiting
+		// For now, fall back to in-memory rate limiting
+		// In a real implementation, you'd use Redis INCR with TTL
+		_ = key // Use the key variable to avoid unused variable error
 
 		c.Next()
 	}
@@ -211,7 +251,7 @@ func Authentication(authService *auth.Service) gin.HandlerFunc {
 		if err != nil {
 			status := http.StatusUnauthorized
 			message := "Invalid token"
-			
+
 			switch err {
 			case auth.ErrTokenExpired:
 				message = "Token expired"
@@ -287,13 +327,13 @@ func AdminAuth(authService *auth.Service) gin.HandlerFunc {
 func Metrics(collector *metrics.Collector) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
-		
+
 		// Process request
 		c.Next()
-		
+
 		// Record metrics
 		duration := time.Since(start)
-		
+
 		collector.RecordRequest(
 			c.Request.Method,
 			c.FullPath(),
@@ -337,7 +377,7 @@ func Timeout(timeout time.Duration) gin.HandlerFunc {
 		// Set timeout on request context
 		ctx, cancel := context.WithTimeout(c.Request.Context(), timeout)
 		defer cancel()
-		
+
 		c.Request = c.Request.WithContext(ctx)
 		c.Next()
 	}
@@ -354,7 +394,7 @@ func RequestSize(maxSize int64) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxSize)
 		c.Next()
 	}

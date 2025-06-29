@@ -18,6 +18,8 @@ type Config struct {
 	Health    HealthConfig    `json:"health" yaml:"health"`
 	Logging   LoggingConfig   `json:"logging" yaml:"logging"`
 	Metrics   MetricsConfig   `json:"metrics" yaml:"metrics"`
+	Redis     RedisConfig     `json:"redis" yaml:"redis"`
+	Cache     CacheConfig     `json:"cache" yaml:"cache"`
 }
 
 // ServerConfig contains HTTP server configuration
@@ -71,11 +73,11 @@ type InstanceConfig struct {
 
 // RateLimitConfig contains rate limiting configuration
 type RateLimitConfig struct {
-	Enabled     bool          `json:"enabled" yaml:"enabled"`
-	RequestsPerSecond int     `json:"requests_per_second" yaml:"requests_per_second"`
-	BurstSize   int           `json:"burst_size" yaml:"burst_size"`
-	WindowSize  time.Duration `json:"window_size" yaml:"window_size"`
-	KeyFunc     string        `json:"key_func" yaml:"key_func"` // ip, user, api_key
+	Enabled           bool          `json:"enabled" yaml:"enabled"`
+	RequestsPerSecond int           `json:"requests_per_second" yaml:"requests_per_second"`
+	BurstSize         int           `json:"burst_size" yaml:"burst_size"`
+	WindowSize        time.Duration `json:"window_size" yaml:"window_size"`
+	KeyFunc           string        `json:"key_func" yaml:"key_func"` // ip, user, api_key
 }
 
 // CORSConfig contains CORS configuration
@@ -91,16 +93,16 @@ type CORSConfig struct {
 
 // HealthConfig contains health check configuration
 type HealthConfig struct {
-	Enabled         bool          `json:"enabled" yaml:"enabled"`
-	CheckInterval   time.Duration `json:"check_interval" yaml:"check_interval"`
-	Timeout         time.Duration `json:"timeout" yaml:"timeout"`
-	FailureThreshold int          `json:"failure_threshold" yaml:"failure_threshold"`
-	SuccessThreshold int          `json:"success_threshold" yaml:"success_threshold"`
+	Enabled          bool          `json:"enabled" yaml:"enabled"`
+	CheckInterval    time.Duration `json:"check_interval" yaml:"check_interval"`
+	Timeout          time.Duration `json:"timeout" yaml:"timeout"`
+	FailureThreshold int           `json:"failure_threshold" yaml:"failure_threshold"`
+	SuccessThreshold int           `json:"success_threshold" yaml:"success_threshold"`
 }
 
 // LoggingConfig contains logging configuration
 type LoggingConfig struct {
-	Level      string `json:"level" yaml:"level"` // debug, info, warn, error
+	Level      string `json:"level" yaml:"level"`   // debug, info, warn, error
 	Format     string `json:"format" yaml:"format"` // json, text
 	Output     string `json:"output" yaml:"output"` // stdout, file
 	FilePath   string `json:"file_path" yaml:"file_path"`
@@ -114,6 +116,24 @@ type MetricsConfig struct {
 	Enabled   bool   `json:"enabled" yaml:"enabled"`
 	Path      string `json:"path" yaml:"path"`
 	Namespace string `json:"namespace" yaml:"namespace"`
+}
+
+// RedisConfig contains Redis configuration
+type RedisConfig struct {
+	Enabled  bool   `json:"enabled" yaml:"enabled"`
+	Host     string `json:"host" yaml:"host"`
+	Port     int    `json:"port" yaml:"port"`
+	Password string `json:"password" yaml:"password"`
+	DB       int    `json:"db" yaml:"db"`
+	PoolSize int    `json:"pool_size" yaml:"pool_size"`
+}
+
+// CacheConfig contains caching configuration
+type CacheConfig struct {
+	Enabled    bool          `json:"enabled" yaml:"enabled"`
+	DefaultTTL time.Duration `json:"default_ttl" yaml:"default_ttl"`
+	MaxSize    int           `json:"max_size" yaml:"max_size"`
+	Strategy   string        `json:"strategy" yaml:"strategy"` // redis, memory, hybrid
 }
 
 // Load loads configuration from environment variables with sensible defaults
@@ -171,6 +191,20 @@ func Load() (*Config, error) {
 			Enabled:   getEnvAsBool("METRICS_ENABLED", true),
 			Path:      getEnv("METRICS_PATH", "/metrics"),
 			Namespace: getEnv("METRICS_NAMESPACE", "gateway"),
+		},
+		Redis: RedisConfig{
+			Enabled:  getEnvAsBool("REDIS_ENABLED", true),
+			Host:     getEnv("REDIS_HOST", "localhost"),
+			Port:     getEnvAsInt("REDIS_PORT", 6379),
+			Password: getEnv("REDIS_PASSWORD", ""),
+			DB:       getEnvAsInt("REDIS_DB", 0),
+			PoolSize: getEnvAsInt("REDIS_POOL_SIZE", 10),
+		},
+		Cache: CacheConfig{
+			Enabled:    getEnvAsBool("CACHE_ENABLED", true),
+			DefaultTTL: getEnvAsDuration("CACHE_DEFAULT_TTL", "5m"),
+			MaxSize:    getEnvAsInt("CACHE_MAX_SIZE", 1000),
+			Strategy:   getEnv("CACHE_STRATEGY", "redis"),
 		},
 	}
 

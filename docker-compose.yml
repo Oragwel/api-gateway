@@ -16,10 +16,16 @@ services:
       - HEALTH_ENABLED=true
       - USER_SERVICE_URL=http://user-service:3001
       - ORDER_SERVICE_URL=http://order-service:3002
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_ENABLED=true
+      - CACHE_ENABLED=true
+      - CACHE_DEFAULT_TTL=5m
     depends_on:
       - user-service
       - order-service
       - prometheus
+      - redis
     networks:
       - gateway-network
     restart: unless-stopped

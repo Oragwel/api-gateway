@@ -22,6 +22,8 @@ A production-ready API Gateway designed for microservices architecture, featurin
 
 ### 🚀 **Performance & Reliability**
 - **Load Balancing** - Round-robin, least connections, weighted algorithms
+- **Redis Caching** - High-performance response caching with TTL
+- **Distributed Rate Limiting** - Redis-based rate limiting across instances
 - **Health Checks** - Automatic upstream service health monitoring
 - **Circuit Breaker** - Fault tolerance and resilience patterns
 - **Request Timeout** - Configurable timeout handling
@@ -129,6 +131,17 @@ RATE_LIMIT_KEY=ip                   # Rate limit key (ip, user, api_key)
 ```bash
 USER_SERVICE_URL=http://localhost:3001      # User service URL
 ORDER_SERVICE_URL=http://localhost:3002     # Order service URL
+```
+
+### **Redis & Caching Configuration**
+```bash
+REDIS_HOST=localhost                         # Redis server host
+REDIS_PORT=6379                             # Redis server port
+REDIS_PASSWORD=                             # Redis password (optional)
+REDIS_DB=0                                  # Redis database number
+CACHE_ENABLED=true                          # Enable response caching
+CACHE_DEFAULT_TTL=5m                        # Default cache TTL
+CACHE_STRATEGY=redis                        # Cache strategy (redis, memory, hybrid)
 ```
 
 ## 📚 API Documentation

@@ -1,4 +1,4 @@
-# 🚀 Tidings Technologies API Gateway
+# 🚀 Scalable API Gateway
 
 **Enterprise-grade API Gateway built with Go - High-performance, secure, and scalable**
 
